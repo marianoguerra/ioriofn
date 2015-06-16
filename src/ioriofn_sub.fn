@@ -1,0 +1,13 @@
+
+fn listen_url @public
+  case Token, Subs:
+    SubsStr = maps.fold([], Subs) <<- case (Bucket, Stream), SeqNum, AccIn:
+      PairStr = io_lib.format("s=~s:~s:~p", [Bucket, Stream, SeqNum])
+      PairBin = list_to_binary(PairStr)
+
+      [PairBin, '&' :: AccIn]
+    end
+
+    io_lib.format("/listen?jwt=~s&~s", [Token, SubsStr])
+end
+  

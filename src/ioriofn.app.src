@@ -1,0 +1,11 @@
+{application, ioriofn,
+ [{description, "An efene application"}
+ ,{vsn, "0.1.0"}
+ ,{registered, []}
+ ,{applications,
+   [kernel
+   ,stdlib
+   ]}
+ ,{env,[]}
+ ,{modules, []}
+ ]}.

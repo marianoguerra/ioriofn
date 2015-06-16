@@ -1,0 +1,145 @@
+
+fn new @public
+  case Host, Port:
+    (ok, Conn) = shotgun.open(Host, Port)
+    Conf = {host: Host, port: Port, conn: Conn, username: nil, token: nil}
+    (ok, Conf)
+end
+
+fn close @public
+  case Conf = {conn = Conn}:
+    shotgun.close(Conn)
+    Conf
+end
+
+fn login @public
+  case Conf = {conn = Conn}, Username, Password:
+    Path = path_for(Conf, login)
+    Headers = {'Content-Type': 'application/json'}
+    ReqBody = to_json({username: Username, password: Password})
+    Options = {}
+    (ok, Resp) = shotgun.post(Conn, Path, Headers, ReqBody, Options)
+
+    match Resp:
+      case {status_code = 201, body = RespBody}:
+        match from_json(RespBody):
+          case {'ok' = true, 'token' = Token}:
+            NewConf = Conf#{username: Username, token: Token}
+            (ok, NewConf)
+          else:
+            (error, (bad_body, Resp))
+        end
+      else:
+        (error, (bad_response, Resp))
+    end
+end
+
+fn clone_connection @public
+  @doc("This function will create a new connection with the same settings
+       as the current one, it's expected to be used after login to avoid having
+       to call login and specifying the password and other settings again")
+  case Conf = {host = Host, port = Port}:
+    (ok, Conn) = shotgun.open(Host, Port)
+    (ok, Conf#{conn: Conn})
+end
+
+fn send @public
+  case Conf, Bucket, Stream, Body:
+    Path = stream_path(Conf, Bucket, Stream)
+    create(Conf, Path, Body)
+end
+
+fn send_patch @public
+  case Conf, Bucket, Stream, Patch:
+    Path = stream_path(Conf, Bucket, Stream)
+    handle_200(patch(Conf, Path, Patch))
+end
+
+fn query @public
+  case Conf, Bucket, Stream:
+    query(Conf, Bucket, Stream, nil, 1)
+end
+
+fn query @public
+  case Conf, Bucket, Stream, Limit:
+    query(Conf, Bucket, Stream, nil, Limit)
+end
+
+fn query @public
+  case Conf, Bucket, Stream, FromSeqNum, Limit:
+    Path0 = stream_path(Conf, Bucket, Stream) ++ "?limit=" ++ integer_to_list(Limit)
+    Path = when is_integer(FromSeqNum):
+             Path0 ++ "&from=" ++ integer_to_list(FromSeqNum)
+           else: 
+             Path0
+           end
+
+    get(Conf, Path)
+end
+
+fn create_user @public
+  case Conf, Username, Password:
+    Path = path_for(Conf, user)
+    Body = {username: Username, password: Password}
+    create(Conf, Path, Body)
+end
+
+#_ "Private Functions"
+
+fn path_for
+  case _Conf, login: "/sessions"
+  case _Conf, user: "/users"
+end
+
+fn stream_path
+  case _Conf, Bucket, Stream:
+    io_lib.format("/streams/~s/~s/", [Bucket, Stream])
+end
+
+fn post
+  case {conn = Conn, token = Token}, Path, Body:
+    Headers = {'Content-Type': 'application/json', 'x-session': Token}
+    ReqBody = to_json(Body)
+    Options = {}
+    shotgun.post(Conn, Path, Headers, ReqBody, Options)
+end
+
+fn patch
+  case {conn = Conn, token = Token}, Path, Body:
+    Headers = {'Content-Type': 'application/json-patch+json', 'x-session': Token}
+    ReqBody = to_json(Body)
+    Options = {}
+    shotgun.patch(Conn, Path, Headers, ReqBody, Options)
+end
+
+fn get
+  case {conn = Conn, token = Token}, Path:
+    Headers = {'Accept': 'application/json', 'x-session': Token}
+    Options = {}
+    handle_200(shotgun.get(Conn, Path, Headers, Options))
+end
+
+fn create
+  case Conf, Path, Body:
+    match post(Conf, Path, Body):
+      case ok, {status_code = 201, body = RespBody}:
+        (ok, from_json(RespBody))
+      case BadResp:
+        (error, (bad_response, BadResp))
+    end
+end
+
+fn handle_200
+  case (ok, {status_code = 200, body = RespBody}):
+    (ok, from_json(RespBody))
+  case BadResp:
+    (error, (bad_response, BadResp))
+end
+
+fn from_json
+  case Str: jsx.decode(Str, [return_maps])
+end
+
+fn to_json
+  case Data: jsx.encode(Data)
+end

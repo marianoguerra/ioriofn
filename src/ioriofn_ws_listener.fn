@@ -1,0 +1,119 @@
+@behaviour(gen_server)
+
+fn start_link @public
+  @doc("Start a ioriofn_ws_listener's instance with start_link")
+  case Opts:
+    gen_server.start_link(#i module, Opts, [])
+end
+
+fn close @public
+  @doc("Start a ioriofn_ws_listener's instance from the reference returned by start_link")
+  case Ref:
+    gen_server.call(Ref, stop)
+end
+
+fn events @public
+  @doc("Get accumulated events")
+  @spec(pid()) -> (ok, [any()])
+  case Ref:
+    gen_server.call(Ref, (get, events))
+end
+
+#_ "gen_server callbacks"
+
+fn init @public
+  @doc("gen_server callback to initialize ioriofn_ws_listener's state")
+
+  case {host = Host, port = Port, subs = Subs, token = Token}:
+    (ok, Conn) = gun.open(Host, Port)
+    Path = ioriofn_sub.listen_url(Token, Subs)
+    gun.ws_upgrade(Conn, Path)
+    State = {host: Host, port: Port, subs: Subs, events: [], conn: Conn}
+    (ok, State, 5000)
+end
+
+
+fn handle_call @public
+  @doc("gen_server callback to handle ioriofn_ws_listener's calls")
+
+  case stop, From, State = {conn = Conn}:
+    log("stopping by ~p, state was ~p.", [From, State])
+    gun.close(Conn)
+    (stop, normal, stopped, State)
+
+  case (get, events), _From, State = {events = Events}:
+    (reply, (ok, lists.reverse(Events)), State#{events: []}, 5000)
+end
+
+
+fn handle_cast @public
+  @doc("gen_server callback to handle ioriofn_ws_listener's casts")
+
+  case Msg, State:
+    log("Unknown cast ~p, ~p.", [Msg, State])
+    (noreply, State, 5000)
+end
+
+
+fn handle_info @public
+  @doc("gen_server callback to handle ioriofn_ws_listener's info calls")
+
+  case timeout, State = {conn = Conn}:
+    gun.ws_send(Conn, (binary, '{"cmd": "ping"}'))
+    (noreply, State, 5000)
+
+  case (gun_up, Conn, Protocol), State = {conn = Conn}:
+    log("ws upgrade ok ~p", [Protocol])
+    (noreply, State, 5000)
+
+  case (gun_ws_upgrade, Conn, ok, _Headers), State = {conn = Conn}:
+    log("ws upgrade ok", [])
+    (noreply, State, 5000)
+
+  case (gun_response, Conn, _, _, Status, Headers), State = {conn = Conn}:
+    log("ws response ~p, ~p", [Status, Headers])
+    (stop, (ws_upgrade_failed, (Status, Headers)), State)
+
+  case (gun_down, Conn, Protocol, Reason, _KilledStreams, _UnprocessedStreams),
+       State = {conn = Conn}:
+    log("down response ~p, ~p", [Conn, Protocol, Reason])
+    (stop, (connection_closed, Reason), State)
+
+  case (gun_error, Conn, _StreamRef, Reason), State = {conn = Conn}:
+    (stop, (ws_upgrade_failed, Reason), State)
+
+  case (gun_ws, Conn, Frame), State = {conn = Conn, events = Events}:
+    log("got frame ~p", [Frame])
+    (noreply, State#{events: [Frame :: Events]}, 5000)
+
+  case Info, State:
+    log("unknown info ~p, ~p.", [Info, State])
+    (noreply, State, 5000)
+end
+
+
+fn terminate @public
+  @doc("gen_server callback to handle ioriofn_ws_listener's terminate call")
+
+  case Reason, State:
+    log("terminate ~p, ~p", [Reason, State])
+    ok
+end
+
+
+fn code_change @public
+  @doc("gen_server callback to handle ioriofn_ws_listener's code_change call")
+  case OldVsn, State, Extra:
+    log("code_change ~p, ~p, ~p", [OldVsn, State, Extra])
+    (ok, State)
+end
+
+#_ "private functions"
+
+fn log
+  @doc("logging function, change this for your preferred logging library")
+
+  case Format, Data:
+    io.format("~p:~p: ~s~n", [#i module, self(), io_lib.format(Format, Data)])
+end
+

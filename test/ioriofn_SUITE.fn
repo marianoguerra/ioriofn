@@ -1,0 +1,17 @@
+
+fn all
+    @public
+    case: [pass, fail]
+end
+
+fn pass
+    @public
+    case _:
+        5 = ioriofn.add(2, 3)
+end
+
+fn fail
+    @public
+    case _:
+        2 = ioriofn.add(1, 0)
+end

@@ -1,0 +1,21 @@
+
+fn listen @public
+  case Conf, Subs:
+    (ok, NewConf) = ioriofn.clone_connection(Conf) 
+    Options = {async: true, async_mode: sse}
+    {conn = Conn, token = Token} = NewConf
+    Path = ioriofn_sub.listen_url(Token, Subs)
+    Headers = {'Accept': 'text/event-stream'}
+    (ok, Ref) = shotgun.get(Conn, Path, Headers, Options)
+    (ok, (NewConf, Ref))
+end
+
+fn close @public
+  case {conn = Conn}:
+    shotgun.close(Conn)
+end
+
+fn events @public
+  case {conn = Conn}:
+    (ok, shotgun.events(Conn))
+end

@@ -1,0 +1,19 @@
+
+fn listen @public
+  case Conf = {host = Host, port = Port, token = Token}, Subs:
+    Opts = {host: Host, port: Port, subs: Subs, token: Token}
+    (ok, NewConn) = ioriofn_ws_listener.start_link(Opts)
+    NewConf = Conf#{conn: NewConn}
+    (ok, (NewConf, NewConn))
+end
+
+fn close @public
+  case {conn = Conn}:
+    ioriofn_ws_listener.close(Conn)
+end
+
+fn events @public
+  case {conn = Conn}:
+    ioriofn_ws_listener.events(Conn)
+end
+
