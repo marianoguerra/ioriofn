@@ -1,0 +1,111 @@
+@behaviour(gen_server)
+
+fn start_link @public
+  @doc("Start a ioriofn_comet_listener's instance with start_link")
+  case Opts:
+    gen_server.start_link(#i module, Opts, [])
+end
+
+fn close @public
+  @doc("Stop a ioriofn_comet_listener's instance from the reference returned by start_link")
+  case Ref:
+    gen_server.call(Ref, stop)
+end
+
+fn events @public
+  @doc("Get accumulated events")
+  @spec(pid()) -> (ok, [any()])
+  case Ref:
+    gen_server.call(Ref, (get, events))
+end
+
+fn poll_once @public
+  case Parent, {conn = Conn, token = Token, subs = Subs}:
+    Path = ioriofn_sub.listen_url(Token, Subs)
+    Headers = {'Content-Type': 'application/json'}
+    Options = {timeout: infinity}
+
+    try
+      Parent ! (poller, shotgun.get(Conn, Path, Headers, Options))
+    catch
+      case T, E:
+        Parent ! (poller, (error, (T, E)))
+    end
+end
+
+#_ "gen_server callbacks"
+
+fn init @public
+  @doc("gen_server callback to initialize ioriofn_comet_listener's state")
+
+  case Opts:
+    State = Opts#{events: []}
+    timer.apply_after(0, #i module, poll_once, [self(), State])
+    (ok, State)
+end
+
+
+fn handle_call @public
+  @doc("gen_server callback to handle ioriofn_comet_listener's calls")
+
+  case stop, _From, State:
+    (stop, normal, stopped, State)
+
+  case (get, events), _From, State = {events = Events}:
+    (reply, (ok, lists.reverse(Events)), State#{events: []})
+end
+
+
+fn handle_cast @public
+  @doc("gen_server callback to handle ioriofn_comet_listener's casts")
+
+  case Msg, State:
+    log("Unknown cast ~p, ~p.", [Msg, State])
+    (noreply, State)
+end
+
+
+fn handle_info @public
+  @doc("gen_server callback to handle ioriofn_comet_listener's info calls")
+
+  case (poller, (ok, {status_code = 200, body = RespBody})),
+       State = {events = Events, subs = Subs}:
+    Data = jsx.decode(RespBody, [return_maps])
+    NewSubs = ioriofn_sub.update_subs(Subs, Data)
+    NewState = State#{events: (Data ++ Events), subs: NewSubs}
+    timer.apply_after(1000, #i module, poll_once, [self(), NewState])
+    (noreply, NewState)
+
+  case (poller, Response), State:
+    log("bad poller response ~p", [Response])
+    timer.apply_after(1000, #i module, poll_once, [self(), State])
+    (noreply, State)
+
+  case Info, State:
+    log("info ~p, ~p.", [Info, State])
+    (noreply, State)
+end
+
+
+fn terminate @public
+  @doc("gen_server callback to handle ioriofn_comet_listener's terminate call")
+  case _Reason, _State: ok
+end
+
+
+fn code_change @public
+  @doc("gen_server callback to handle ioriofn_comet_listener's code_change call")
+  case OldVsn, State, Extra:
+    log("code_change ~p, ~p, ~p", [OldVsn, State, Extra])
+    (ok, State)
+end
+
+#_ "private functions"
+
+fn log
+  @doc("logging function, change this for your preferred logging library")
+
+  case Format, Data:
+    io.format("~p:~p: ~s~n", [#i module, self(), io_lib.format(Format, Data)])
+end
+

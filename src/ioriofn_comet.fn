@@ -1,0 +1,20 @@
+
+fn listen @public
+  case Conf, Subs:
+    (ok, NewConf) = ioriofn.clone_connection(Conf) 
+    Opts = NewConf#{subs: Subs}
+    (ok, Ref) = ioriofn_comet_listener.start_link(Opts)
+    NewConf1 = NewConf#{ref: Ref}
+    (ok, (NewConf1, Ref))
+end
+
+fn close @public
+  case {conn = Conn, ref = Ref}:
+    ioriofn_comet_listener.close(Ref)
+    shotgun.close(Conn)
+end
+
+fn events @public
+  case {ref = Ref}:
+    ioriofn_comet_listener.events(Ref)
+end

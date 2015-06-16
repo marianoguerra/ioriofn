@@ -7,7 +7,7 @@ fn start_link @public
 end
 
 fn close @public
-  @doc("Start a ioriofn_ws_listener's instance from the reference returned by start_link")
+  @doc("Stop a ioriofn_ws_listener's instance from the reference returned by start_link")
   case Ref:
     gen_server.call(Ref, stop)
 end
@@ -36,8 +36,7 @@ end
 fn handle_call @public
   @doc("gen_server callback to handle ioriofn_ws_listener's calls")
 
-  case stop, From, State = {conn = Conn}:
-    log("stopping by ~p, state was ~p.", [From, State])
+  case stop, _From, State = {conn = Conn}:
     gun.close(Conn)
     (stop, normal, stopped, State)
 
@@ -62,28 +61,23 @@ fn handle_info @public
     gun.ws_send(Conn, (binary, '{"cmd": "ping"}'))
     (noreply, State, 5000)
 
-  case (gun_up, Conn, Protocol), State = {conn = Conn}:
-    log("ws upgrade ok ~p", [Protocol])
+  case (gun_up, Conn, _Protocol), State = {conn = Conn}:
     (noreply, State, 5000)
 
   case (gun_ws_upgrade, Conn, ok, _Headers), State = {conn = Conn}:
-    log("ws upgrade ok", [])
     (noreply, State, 5000)
 
   case (gun_response, Conn, _, _, Status, Headers), State = {conn = Conn}:
-    log("ws response ~p, ~p", [Status, Headers])
     (stop, (ws_upgrade_failed, (Status, Headers)), State)
 
-  case (gun_down, Conn, Protocol, Reason, _KilledStreams, _UnprocessedStreams),
+  case (gun_down, Conn, _Protocol, Reason, _KilledStreams, _UnprocessedStreams),
        State = {conn = Conn}:
-    log("down response ~p, ~p", [Conn, Protocol, Reason])
     (stop, (connection_closed, Reason), State)
 
   case (gun_error, Conn, _StreamRef, Reason), State = {conn = Conn}:
     (stop, (ws_upgrade_failed, Reason), State)
 
   case (gun_ws, Conn, Frame), State = {conn = Conn, events = Events}:
-    log("got frame ~p", [Frame])
     (noreply, State#{events: [Frame :: Events]}, 5000)
 
   case Info, State:
@@ -94,10 +88,7 @@ end
 
 fn terminate @public
   @doc("gen_server callback to handle ioriofn_ws_listener's terminate call")
-
-  case Reason, State:
-    log("terminate ~p, ~p", [Reason, State])
-    ok
+  case _Reason, _State: ok
 end
 
 

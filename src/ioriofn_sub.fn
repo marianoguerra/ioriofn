@@ -2,12 +2,30 @@
 fn listen_url @public
   case Token, Subs:
     SubsStr = maps.fold([], Subs) <<- case (Bucket, Stream), SeqNum, AccIn:
-      PairStr = io_lib.format("s=~s:~s:~p", [Bucket, Stream, SeqNum])
-      PairBin = list_to_binary(PairStr)
+      PairStr = when SeqNum is 0:
+        io_lib.format("s=~s:~s", [Bucket, Stream])
+      else:
+        io_lib.format("s=~s:~s:~p", [Bucket, Stream, SeqNum])
+      end
 
-      [PairBin, '&' :: AccIn]
+      match AccIn:
+        case []:
+          [PairStr]
+        else:
+          [PairStr, '&' :: AccIn]
+      end
     end
 
     io_lib.format("/listen?jwt=~s&~s", [Token, SubsStr])
+end
+
+fn update_subs @public
+  case Subs, Events:
+    lists.foldl(Subs, Events) <<- case {'meta' = {'id' = Id,
+                                                  'bucket' = Bucket,
+                                                  'stream' = Stream}}, SubsIn:
+      Key = (Bucket, Stream)
+      maps.put(Key, Id + 1, SubsIn)
+    end
 end
   
