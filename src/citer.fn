@@ -1,0 +1,29 @@
+
+fn loop @public
+  case Fn, State:
+    loop(Fn, State, [])
+end
+
+fn loop @public
+  case Fn, State, Result:
+    match Fn(State, Result):
+      case continue, NewState, NewResult:
+        loop(Fn, NewState, NewResult)
+      case stop, FinalResult:
+        FinalResult
+    end
+end
+
+fn times @public
+  case _Fn, State, Result, 0:
+    (stop, (Result, State))
+  case Fn, State, Result, Count when Count > 0:
+    loop((Count, State), Result) <<-
+      case (0, StateIn), ResultIn:
+        (stop, (ResultIn, StateIn))
+      case (CountIn, StateIn), ResultIn:
+        (StateOut, ResultOut) = Fn(StateIn, ResultIn)
+        (continue, (CountIn - 1, StateOut), ResultOut)
+    end
+end
+

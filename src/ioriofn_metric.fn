@@ -1,0 +1,47 @@
+
+fn get_all @public
+  case:
+    MetricKeys = [
+                  [ioriofn, send, count, ok],
+                  [ioriofn, send, count, error],
+
+                  [ioriofn, send, time, ok],
+                  [ioriofn, send, time, error],
+                  [ioriofn, send, time, total],
+                 ]
+
+    for Key in MetricKeys:
+      (Key, get_metric(Key))
+    end
+end
+
+fn get_metric case Key:
+  match exometer.get_value(Key):
+    case ok, Val: Val
+    else: []
+  end
+end
+
+fn create_metrics @public
+  case:
+    exometer.new([ioriofn, send, count, ok], counter, [])
+    exometer.new([ioriofn, send, count, error], counter, [])
+
+    exometer.new([ioriofn, send, time, ok], histogram, [])
+    exometer.new([ioriofn, send, time, error], histogram, [])
+    exometer.new([ioriofn, send, time, total], histogram, [])
+end
+
+fn send_ok @public
+  case _Bucket, _Stream, Time, _Response:
+    exometer.update([ioriofn, send, count, ok], 1)
+    exometer.update([ioriofn, send, time, ok], Time)
+    exometer.update([ioriofn, send, time, total], Time)
+end
+
+fn send_error @public
+  case _Bucket, _Stream, Time, _Response:
+    exometer.update([ioriofn, send, count, error], 1)
+    exometer.update([ioriofn, send, time, error], Time)
+    exometer.update([ioriofn, send, time, total], Time)
+end

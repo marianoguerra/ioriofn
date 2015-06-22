@@ -1,0 +1,15 @@
+
+fn new @public
+  case Items = [_ :: _]:
+    {read: [], to_read: Items}
+end
+
+fn next @public
+  case {to_read = [], read = Read}:
+    [Next :: NewToRead] = lists.reverse(Read)
+    (Next, {read: [Next], to_read: NewToRead})
+  case {to_read = [Next :: NewToRead], read = Read}:
+    (Next, {read: [Next :: Read], to_read: NewToRead})
+end
+
+

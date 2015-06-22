@@ -30,7 +30,7 @@ fn login @public
             (error, (bad_body, Resp))
         end
       else:
-        (error, (bad_response, Resp))
+        bad_response(Resp)
     end
 end
 
@@ -125,7 +125,7 @@ fn create
       case ok, {status_code = 201, body = RespBody}:
         (ok, from_json(RespBody))
       case BadResp:
-        (error, (bad_response, BadResp))
+        bad_response(BadResp)
     end
 end
 
@@ -133,7 +133,7 @@ fn handle_200
   case (ok, {status_code = 200, body = RespBody}):
     (ok, from_json(RespBody))
   case BadResp:
-    (error, (bad_response, BadResp))
+     bad_response(BadResp)
 end
 
 fn from_json
@@ -143,3 +143,11 @@ end
 fn to_json
   case Data: jsx.encode(Data)
 end
+
+fn bad_response
+  case (ok, {status_code = 400, body = RespBody}):
+    (error, (bad_request, from_json(RespBody)))
+  case Resp:
+    (error, (unknown_error, Resp))
+end
+  

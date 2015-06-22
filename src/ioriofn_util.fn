@@ -1,0 +1,6 @@
+
+fn now @public
+  case:
+    (Mega, Sec, Micro) = os.timestamp()
+    ((Mega * 1000000 + Sec) * 1000000 + Micro)
+end

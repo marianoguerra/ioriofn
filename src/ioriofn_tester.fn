@@ -1,0 +1,43 @@
+
+fn sample_msgs @public
+  case:
+    [enc(1), enc(true), enc(false), enc(0), enc(42), enc(1000),
+     enc('hi'), enc(''), enc('Hello there this is a test'),
+     enc([]), enc([[]]),
+     enc(lists.seq(1, 5)), enc(lists.seq(1, 10)),
+     enc(lists.seq(1, 25)), enc(lists.seq(1, 50)),
+     enc({}),
+     enc({name: 'bob', age: 29, gender: 'sponge'}),
+     enc(nil), enc([1, true, nil, 42, 'hi', [{}, {msg: 'hi'}]]),
+     enc('......................................................................................................................................................................................................................')]
+end
+
+fn prefixed_streams @public
+  case Prefix, Count:
+    lists.map(lists.seq(1, Count)) <<- case I:
+      io_lib.format("~s~p", [Prefix, I])
+        -> list_to_binary()
+    end
+end
+
+fn new_sender @public
+  case Rnd, Opts:
+    ([NumTimeouts, NumMsgs], Rnd1) = ioriofn_rnd.random_ints(Rnd, 1, 20, 2)
+    (Timeouts, Rnd2) = ioriofn_rnd.random_ints(Rnd1, 1, 90000, NumTimeouts)
+    (Msgs, Rnd3) = ioriofn_rnd.choices(Rnd2, sample_msgs(), NumMsgs)
+    Result = ioriofn_sender.start_link(Opts#{timeouts: Timeouts, messages: Msgs})
+    (Result, Rnd3)
+end
+
+fn new_senders @public
+  case Rnd, Opts, Streams, Count when Count > 0:
+    citer.times(Rnd, [], Count) <<- case RndIn, SendersIn:
+      (Stream, Rnd1) = ioriofn_rnd.choice(RndIn, Streams)
+      ((ok, Sender), RndOut) = new_sender(Rnd1, Opts#{stream: Stream})
+      (RndOut, [Sender :: SendersIn])
+    end
+end
+
+fn enc @public
+  case V: jsx.encode(V)
+end

@@ -1,0 +1,43 @@
+
+fn new @public
+  case:
+    Seed = random.seed(erlang.now())
+    {seed: Seed}
+end
+
+fn choice @public
+  case State = {seed = Seed}, Items:
+    Size = length(Items)
+    (N, Seed1) = random.uniform_s(Size, Seed)
+    NewState = State#{seed: Seed1}
+    Item = lists.nth(N, Items)
+    (Item, NewState)
+end
+
+fn choices @public
+  case State, Items, Count:
+    citer.times(State, [], Count) <<-
+      case RandStateIn, ResultIn:
+        (Item, RandStateOut) = choice(RandStateIn, Items)
+        ResultOut = [Item :: ResultIn]
+        (RandStateOut, ResultOut)
+    end
+end
+
+fn random_int @public
+  case State = {seed = Seed}, Min, Max:
+    (N, Seed1) = random.uniform_s(Max - Min, Seed)
+    NewState = State#{seed: Seed1}
+    Num = N + Min
+    (Num, NewState)
+end
+
+fn random_ints @public
+  case State, Min, Max, Count when Count > 0:
+    citer.times(State, [], Count) <<-
+      case RandStateIn, ResultIn:
+        (Rand, RandStateOut) = random_int(RandStateIn, Min, Max)
+        ResultOut = [Rand :: ResultIn]
+        (RandStateOut, ResultOut)
+    end
+end

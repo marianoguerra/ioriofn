@@ -5,6 +5,8 @@
  ,{applications,
    [kernel
    ,stdlib
+   ,exometer_core
+   ,shotgun
    ]}
  ,{env,[]}
  ,{modules, []}
