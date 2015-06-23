@@ -33,7 +33,7 @@ end
 fn init @public
   @doc("gen_server callback to initialize ioriofn_sender's state")
 
-  case {username = Username, password = Password,
+  case Opts = {username = Username, password = Password,
         host = Host, port = Port,
         bucket = Bucket, stream = Stream,
         timeouts = TimeoutValues, messages = MessageValues}:
@@ -44,12 +44,14 @@ fn init @public
     Timeouts = ioriofn_cycle.new(TimeoutValues)
     Messages = ioriofn_cycle.new(MessageValues)
 
+    Verbose = maps.get(verbose, Opts, false)
+
     (Timeout, Timeouts1) = ioriofn_cycle.next(Timeouts)
 
     State = {conn: C2, timeouts: Timeouts1, messages: Messages,
              username: Username, password: Password,
              bucket: Bucket, stream: Stream,
-             host: Host, port: Port}
+             host: Host, port: Port, verbose: Verbose}
 
     (ok, State, Timeout)
 end
@@ -58,8 +60,7 @@ end
 fn handle_call @public
   @doc("gen_server callback to handle ioriofn_sender's calls")
 
-  case stop, From, State:
-    log("stopping by ~p, state was ~p.", [From, State])
+  case stop, _From, State:
     (stop, normal, stopped, State)
 end
 
@@ -81,12 +82,14 @@ fn handle_info @public
     (noreply, NewState, Timeout)
   case (send_result, Time, Result), State = {bucket = Bucket, stream = Stream}:
     ioriofn_metric.send_error(Bucket, Stream, Time, Result)
+    log("error: ~p/~p ~p", [Bucket, Stream, Result)
     (Timeout, NewState) = next_timeout(State)
     (noreply, NewState, Timeout)
-  case timeout, State = {bucket = Bucket, stream = Stream, conn = Conn, messages = Messages}:
-    (Message, NewMessages) = ioriofn_cycle.next(Messages)
+  case timeout, State = {bucket = Bucket, stream = Stream, conn = Conn,
+                         messages = Messages, verbose = Verbose}:
+    (Message, NewMessages) = next_message(Messages)
     Pid = self()
-    io.format("sending event ~p ~s~n", [Pid, Message])
+    when Verbose: io.format("sending event ~p ~s~n", [Pid, Message]) else: ok end
     timer.apply_after(1, #i module, send, [Conn, Bucket, Stream, Message, Pid])
     (Timeout, NewState) = next_timeout(State)
     (noreply, NewState#{messages: NewMessages}, Timeout)
@@ -99,8 +102,8 @@ end
 fn terminate @public
   @doc("gen_server callback to handle ioriofn_sender's terminate call")
 
-  case Reason, State:
-    log("terminate ~p, ~p", [Reason, State])
+  case Reason, _State:
+    log("terminate ~p", [Reason])
     ok
 end
 
@@ -125,4 +128,14 @@ fn next_timeout case State = {timeouts = Timeouts}:
   (Timeout, NewTimeouts) = ioriofn_cycle.next(Timeouts)
   NewState = State#{timeouts: NewTimeouts}
   (Timeout, NewState)
+end
+
+fn next_message case Msgs:
+  (Msg, NewMsgs) = ioriofn_cycle.next(Msgs)
+  FMsg = when is_function(Msg):
+    Msg()
+  else:
+    Msg
+  end
+  (FMsg, NewMsgs)
 end

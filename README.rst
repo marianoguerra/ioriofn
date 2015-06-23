@@ -22,6 +22,7 @@ and then::
     application:ensure_all_started(ioriofn).
     random:seed().
     Rnd = ioriofn_rnd:new().
+    ioriofn_metric:create_metrics().
 
     SenderCount = 20.
     StreamsCount = SenderCount div 3.
@@ -38,6 +39,16 @@ and then::
              host => Host, port => Port, bucket => Bucket}.
 
     {Senders, Rnd1} = ioriofn_tester:new_senders(Rnd, Opts, Streams, SenderCount).
+
+To start metrics sender::
+
+    MetricsOpts = Opts#{stream => <<"ioriofn_metrics">>,
+        timeouts => [60000], messages => [fun ioriofn_metric:get_all_str_keys/0]}.
+    {ok, MetricSender} = ioriofn_sender:start_link(MetricsOpts).
+
+To get metrics::
+
+    ioriofn_metric:get_all().
 
 To Stop the madness::
 

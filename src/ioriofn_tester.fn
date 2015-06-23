@@ -23,7 +23,14 @@ end
 fn new_sender @public
   case Rnd, Opts:
     ([NumTimeouts, NumMsgs], Rnd1) = ioriofn_rnd.random_ints(Rnd, 1, 20, 2)
-    (Timeouts, Rnd2) = ioriofn_rnd.random_ints(Rnd1, 1, 90000, NumTimeouts)
+    MinTimeout = 1
+    MaxTimeout = 90000
+    new_sender(Rnd1, Opts, NumTimeouts, NumMsgs, MinTimeout, MaxTimeout)
+end
+
+fn new_sender @public
+  case Rnd, Opts, NumTimeouts, NumMsgs, MinTimeout, MaxTimeout:
+    (Timeouts, Rnd2) = ioriofn_rnd.random_ints(Rnd, MinTimeout, MaxTimeout, NumTimeouts)
     (Msgs, Rnd3) = ioriofn_rnd.choices(Rnd2, sample_msgs(), NumMsgs)
     Result = ioriofn_sender.start_link(Opts#{timeouts: Timeouts, messages: Msgs})
     (Result, Rnd3)
@@ -39,5 +46,5 @@ fn new_senders @public
 end
 
 fn enc @public
-  case V: jsx.encode(V)
+  case V: V
 end
