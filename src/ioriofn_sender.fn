@@ -82,7 +82,7 @@ fn handle_info @public
     (noreply, NewState, Timeout)
   case (send_result, Time, Result), State = {bucket = Bucket, stream = Stream}:
     ioriofn_metric.send_error(Bucket, Stream, Time, Result)
-    log("error: ~p/~p ~p", [Bucket, Stream, Result)
+    log("error: ~p/~p ~p", [Bucket, Stream, Result])
     (Timeout, NewState) = next_timeout(State)
     (noreply, NewState, Timeout)
   case timeout, State = {bucket = Bucket, stream = Stream, conn = Conn,
