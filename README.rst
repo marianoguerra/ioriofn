@@ -13,7 +13,7 @@ Build
 Use
 ---
 
-Start a shell::
+Start the erlang shell (no efene shell yet)::
 
     rebar3 shell
 
