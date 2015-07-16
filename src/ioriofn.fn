@@ -108,7 +108,52 @@ fn create_user @public
     create(Conf, Path, Body)
 end
 
+fn grant_bucket @public
+  case Conf, Bucket, Username, Permission
+         when Permission is get; Permission is put;
+              Permission is list; Permission is grant:
+
+    access(Conf, (bucket, Bucket), Username, Permission, 'grant')
+  case _Conf, _Bucket, _Username, Permission:
+    (error, (invalid_permission, Permission))
+end
+
+fn revoke_bucket @public
+  case Conf, Bucket, Username, Permission
+         when Permission is get; Permission is put;
+              Permission is list; Permission is grant:
+
+    access(Conf, (bucket, Bucket), Username, Permission, 'revoke')
+  case _Conf, _Bucket, _Username, Permission:
+    (error, (invalid_permission, Permission))
+end
+
+fn grant_stream @public
+  case Conf, Bucket, Stream, Username, Permission
+         when Permission is get; Permission is put; Permission is grant:
+
+    access(Conf, (stream, Bucket, Stream), Username, Permission, 'grant')
+  case _Conf, _Bucket, _Stream, _Username, Permission:
+    (error, (invalid_permission, Permission))
+end
+
+fn revoke_stream @public
+  case Conf, Bucket, Stream, Username, Permission
+         when Permission is get; Permission is put; Permission is grant:
+
+    access(Conf, (stream, Bucket, Stream), Username, Permission, 'revoke')
+  case _Conf, _Bucket, _Stream, _Username, Permission:
+    (error, (invalid_permission, Permission))
+end
+
 #_ "Private Functions"
+
+fn access
+  case Conf, PathData, Username, Permission, Action:
+    Path = path_for(Conf, access, PathData)
+    Body = {role: Username, permission: Permission, action: Action}
+    handle_200(post(Conf, Path, Body))
+end
 
 fn path_for
   case _Conf, login: "/sessions"
@@ -119,7 +164,12 @@ fn path_for
 end
 
 fn path_for
-  case _Conf, stream_list, Bucket: io_lib.format("/streams/~s", [Bucket])
+  case _Conf, stream_list, Bucket:
+    io_lib.format("/streams/~s", [Bucket])
+  case _Conf, access, (bucket, Bucket):
+    io_lib.format("/access/~s", [Bucket])
+  case _Conf, access, (stream, Bucket, Stream):
+    io_lib.format("/access/~s/~s", [Bucket, Stream])
 end
 
 fn stream_path

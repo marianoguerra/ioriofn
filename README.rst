@@ -68,9 +68,32 @@ Basic usage::
 
     ioriofn:ping(C2).
     ioriofn:get_session(C2).
+
     ioriofn:list_buckets(C2).
     ioriofn:list_streams(C2, <<"_user_mariano">>).
     ioriofn:list_streams(C2, <<"public">>).
+
+    ioriofn:grant_bucket(C2, <<"_user_mariano">>, <<"admin">>, get).
+    ioriofn:grant_bucket(C2, <<"_user_mariano">>, <<"admin">>, put).
+    ioriofn:grant_bucket(C2, <<"_user_mariano">>, <<"admin">>, grant).
+    ioriofn:grant_bucket(C2, <<"_user_mariano">>, <<"admin">>, foo).
+
+    % this should fail
+    ioriofn:grant_bucket(C2, <<"_user_admin">>, <<"admin">>, get).
+    ioriofn:grant_bucket(C2, <<"_user_admin">>, <<"admin">>, put).
+    ioriofn:grant_bucket(C2, <<"_user_admin">>, <<"admin">>, grant).
+    ioriofn:grant_bucket(C2, <<"_user_admin">>, <<"admin">>, foo).
+
+    ioriofn:grant_stream(C2, <<"_user_mariano">>, <<"public">>, <<"admin">>, get).
+    ioriofn:grant_stream(C2, <<"_user_mariano">>, <<"public">>, <<"admin">>, put).
+    ioriofn:grant_stream(C2, <<"_user_mariano">>, <<"public">>, <<"admin">>, grant).
+    ioriofn:grant_stream(C2, <<"_user_mariano">>, <<"public">>, <<"admin">>, foo).
+
+    % this should fail
+    ioriofn:grant_stream(C2, <<"_user_admin">>, <<"public">>, <<"admin">>, get).
+    ioriofn:grant_stream(C2, <<"_user_admin">>, <<"public">>, <<"admin">>, put).
+    ioriofn:grant_stream(C2, <<"_user_admin">>, <<"public">>, <<"admin">>, grant).
+    ioriofn:grant_stream(C2, <<"_user_admin">>, <<"public">>, <<"admin">>, foo).
 
 TODO
 ----
