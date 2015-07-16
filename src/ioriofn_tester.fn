@@ -46,6 +46,33 @@ fn new_senders @public
     end
 end
 
+fn new_reader @public
+  case Rnd, Opts:
+    ([NumTimeouts, NumLimits], Rnd1) = ioriofn_rnd.random_ints(Rnd, 1, 20, 2)
+    MinTimeout = 1
+    MaxTimeout = 90000
+    MinLimit = 0
+    MaxLimit = 100
+    new_reader(Rnd1, Opts, NumLimits, MinLimit, MaxLimit, NumTimeouts, MinTimeout, MaxTimeout)
+end
+
+fn new_reader @public
+  case Rnd, Opts, NumLimits, MinLimit, MaxLimit, NumTimeouts, MinTimeout, MaxTimeout:
+    (Timeouts, Rnd1) = ioriofn_rnd.random_ints(Rnd, MinTimeout, MaxTimeout, NumTimeouts)
+    (Limits, Rnd2) = ioriofn_rnd.random_ints(Rnd1, MinLimit, MaxLimit, NumLimits)
+    Result = ioriofn_reader.start_link(Opts#{timeouts: Timeouts, limits: Limits})
+    (Result, Rnd2)
+end
+
+fn new_readers @public
+  case Rnd, Opts, Streams, Count when Count > 0:
+    citer.times(Rnd, [], Count) <<- case RndIn, SendersIn:
+      (Stream, Rnd1) = ioriofn_rnd.choice(RndIn, Streams)
+      ((ok, Sender), RndOut) = new_reader(Rnd1, Opts#{stream: Stream})
+      (RndOut, [Sender :: SendersIn])
+    end
+end
+
 fn enc @public
   case V: V
 end

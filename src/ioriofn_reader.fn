@@ -1,0 +1,131 @@
+@behaviour(gen_server)
+
+fn start_link @public
+  @doc("Start a ioriofn_reader's instance with start_link")
+  case Opts:
+    gen_server.start_link(#i module, Opts, [])
+end
+
+fn stop @public
+  @doc("Stop a ioriofn_reader's instance from the reference returned by start_link")
+  case Ref:
+    gen_server.call(Ref, stop)
+end
+
+fn query @public
+  case Conn, Bucket, Stream, Limit, Pid:
+    T1 = ioriofn_util.now()
+
+    R = try
+      ioriofn.query(Conn, Bucket, Stream, Limit)
+    catch
+      case T, E:
+        (error, (T, E))
+    end
+
+    T2 = ioriofn_util.now()
+    Time = T2 - T1
+    Pid ! (query_result, Time, R)
+end
+
+#_ "gen_server callbacks"
+
+fn init @public
+  @doc("gen_server callback to initialize ioriofn_reader's state")
+
+  case Opts = {username = Username, password = Password,
+        host = Host, port = Port,
+        bucket = Bucket, stream = Stream,
+        timeouts = TimeoutValues, limits = LimitValues}:
+
+    (ok, C1) = ioriofn.new(Host, Port)
+    (ok, C2) = ioriofn.login(C1, Username, Password)
+
+    Timeouts = ioriofn_cycle.new(TimeoutValues)
+    Limits = ioriofn_cycle.new(LimitValues)
+
+    Verbose = maps.get(verbose, Opts, false)
+
+    (Timeout, Timeouts1) = ioriofn_cycle.next(Timeouts)
+
+    State = {conn: C2, timeouts: Timeouts1, limits: Limits,
+             username: Username, password: Password,
+             bucket: Bucket, stream: Stream,
+             host: Host, port: Port, verbose: Verbose}
+
+    (ok, State, Timeout)
+end
+
+
+fn handle_call @public
+  @doc("gen_server callback to handle ioriofn_reader's calls")
+
+  case stop, _From, State:
+    (stop, normal, stopped, State)
+end
+
+
+fn handle_cast @public
+  @doc("gen_server callback to handle ioriofn_reader's casts")
+
+  case Msg, State:
+    log("Unknown cast ~p, ~p.", [Msg, State])
+    (noreply, State)
+end
+
+
+fn handle_info @public
+  @doc("gen_server callback to handle ioriofn_reader's info calls")
+  case (query_result, Time, (ok, Result)), State = {bucket = Bucket, stream = Stream}:
+    ioriofn_metric.send_ok(Bucket, Stream, Time, Result)
+    (Timeout, NewState) = next_timeout(State)
+    (noreply, NewState, Timeout)
+  case (query_result, Time, Result), State = {bucket = Bucket, stream = Stream}:
+    ioriofn_metric.send_error(Bucket, Stream, Time, Result)
+    log("error: ~p/~p ~p", [Bucket, Stream, Result])
+    (Timeout, NewState) = next_timeout(State)
+    (noreply, NewState, Timeout)
+  case timeout, State = {bucket = Bucket, stream = Stream, conn = Conn,
+                         limits = Limits, verbose = Verbose}:
+    (Limit, NewLimits) = ioriofn_cycle.next(Limits)
+    Pid = self()
+    when Verbose: io.format("sending event ~p ~s~n", [Pid, Limit]) else: ok end
+    timer.apply_after(1, #i module, query, [Conn, Bucket, Stream, Limit, Pid])
+    (Timeout, NewState) = next_timeout(State)
+    (noreply, NewState#{limits: NewLimits}, Timeout)
+  case Info, State:
+    log("info ~p, ~p.", [Info, State])
+    (noreply, State)
+end
+
+
+fn terminate @public
+  @doc("gen_server callback to handle ioriofn_reader's terminate call")
+
+  case Reason, _State:
+    log("terminate ~p", [Reason])
+    ok
+end
+
+
+fn code_change @public
+  @doc("gen_server callback to handle ioriofn_reader's code_change call")
+  case OldVsn, State, Extra:
+    log("code_change ~p, ~p, ~p", [OldVsn, State, Extra])
+    (ok, State)
+end
+
+#_ "private functions"
+
+fn log
+  @doc("logging function, change this for your preferred logging library")
+
+  case Format, Data:
+    io.format("~p:~p: ~s~n", [#i module, self(), io_lib.format(Format, Data)])
+end
+
+fn next_timeout case State = {timeouts = Timeouts}:
+  (Timeout, NewTimeouts) = ioriofn_cycle.next(Timeouts)
+  NewState = State#{timeouts: NewTimeouts}
+  (Timeout, NewState)
+end

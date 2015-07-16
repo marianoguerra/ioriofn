@@ -39,6 +39,7 @@ and then::
              host => Host, port => Port, bucket => Bucket}.
 
     {Senders, Rnd1} = ioriofn_tester:new_senders(Rnd, Opts, Streams, SenderCount).
+    {Readers, Rnd2} = ioriofn_tester:new_readers(Rnd1, Opts, Streams, SenderCount).
 
 To start metrics sender::
 
