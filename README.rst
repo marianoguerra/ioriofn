@@ -67,6 +67,9 @@ Basic usage::
     {ok, C2} = ioriofn:login(C1, Username, Password).
 
     ioriofn:ping(C2).
+    ioriofn:list_buckets(C2).
+    ioriofn:list_streams(C2, <<"_user_mariano">>).
+    ioriofn:list_streams(C2, <<"public">>).
 
 TODO
 ----

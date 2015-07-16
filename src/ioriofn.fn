@@ -83,6 +83,18 @@ fn ping @public
     get(Conf, Path)
 end
 
+fn list_buckets @public
+  case Conf:
+    Path = path_for(Conf, bucket_list)
+    get(Conf, Path)
+end
+
+fn list_streams @public
+  case Conf, Bucket:
+    Path = path_for(Conf, stream_list, Bucket)
+    get(Conf, Path)
+end
+
 fn create_user @public
   case Conf, Username, Password:
     Path = path_for(Conf, user)
@@ -96,6 +108,11 @@ fn path_for
   case _Conf, login: "/sessions"
   case _Conf, user: "/users"
   case _Conf, ping: "/ping"
+  case _Conf, bucket_list: "/buckets"
+end
+
+fn path_for
+  case _Conf, stream_list, Bucket: io_lib.format("/streams/~s", [Bucket])
 end
 
 fn stream_path
@@ -154,6 +171,8 @@ end
 fn bad_response
   case (ok, {status_code = 400, body = RespBody}):
     (error, (bad_request, from_json(RespBody)))
+  case (ok, {status_code = 401, body = RespBody}):
+    (error, (unauthorized, from_json(RespBody)))
   case Resp:
     (error, (unknown_error, Resp))
 end
