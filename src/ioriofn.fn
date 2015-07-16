@@ -95,6 +95,12 @@ fn list_streams @public
     get(Conf, Path)
 end
 
+fn get_session @public
+  case Conf:
+    Path = path_for(Conf, session)
+    get(Conf, Path)
+end
+
 fn create_user @public
   case Conf, Username, Password:
     Path = path_for(Conf, user)
@@ -106,6 +112,7 @@ end
 
 fn path_for
   case _Conf, login: "/sessions"
+  case _Conf, session: "/sessions"
   case _Conf, user: "/users"
   case _Conf, ping: "/ping"
   case _Conf, bucket_list: "/buckets"
