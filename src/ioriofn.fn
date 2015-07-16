@@ -70,10 +70,16 @@ fn query @public
     Path0 = stream_path(Conf, Bucket, Stream) ++ "?limit=" ++ integer_to_list(Limit)
     Path = when is_integer(FromSeqNum):
              Path0 ++ "&from=" ++ integer_to_list(FromSeqNum)
-           else: 
+           else:
              Path0
            end
 
+    get(Conf, Path)
+end
+
+fn ping @public
+  case Conf:
+    Path = path_for(Conf, ping)
     get(Conf, Path)
 end
 
@@ -89,6 +95,7 @@ end
 fn path_for
   case _Conf, login: "/sessions"
   case _Conf, user: "/users"
+  case _Conf, ping: "/ping"
 end
 
 fn stream_path
@@ -150,4 +157,3 @@ fn bad_response
   case Resp:
     (error, (unknown_error, Resp))
 end
-  

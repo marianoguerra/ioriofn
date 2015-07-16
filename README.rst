@@ -1,5 +1,5 @@
 ioriofn
-=====
+=======
 
 An efene application to test ioriodb
 
@@ -53,6 +53,19 @@ To get metrics::
 To Stop the madness::
 
     lists:map(fun ioriofn_sender:stop/1, Senders).
+
+Basic usage::
+
+    application:ensure_all_started(ioriofn).
+    Host = "localhost".
+    Port = 8080.
+    Username = <<"mariano">>.
+    Password = <<"secret">>.
+
+    {ok, C1} = ioriofn:new(Host, Port).
+    {ok, C2} = ioriofn:login(C1, Username, Password).
+
+    ioriofn:ping(C2).
 
 TODO
 ----
