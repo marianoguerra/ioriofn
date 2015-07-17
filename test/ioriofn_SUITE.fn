@@ -38,7 +38,7 @@ fn with_connection case Fn:
   end
 end
 
-fn end_per_testcase @public case Test, Config:
+fn end_per_testcase @public case _Test, Config:
   Conn = conn(Config)
   ioriofn.close(Conn)
   Config
@@ -48,7 +48,7 @@ fn conn case Config:
   proplists.get_value(conn, Config)
 end
 
-fn ping_not_authenticated @public case Config:
+fn ping_not_authenticated @public case _Config:
   with_connection() <- case Conn:
     (ok, {'pong' = _}) = ioriofn.ping(Conn)
   end
