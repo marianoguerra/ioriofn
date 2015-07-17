@@ -5,10 +5,44 @@ fn all @public case:
    list_buckets, list_buckets_unauthenticated, list_buckets_unauthorized,
    list_streams, list_streams_unauthenticated, list_streams_unauthorized,
    grant_revoke_own_bucket, grant_revoke_other_bucket, grant_revoke_other_bucket_not_authenticated,
-   grant_revoke_own_stream, grant_revoke_other_stream, grant_revoke_other_stream_not_authenticated]
+   grant_revoke_own_stream, grant_revoke_other_stream, grant_revoke_other_stream_not_authenticated,
+   query_inexistent, query_other_inexistent,
+   send_query_last, send_patch_query_last]
 end
 
 fn log case Value: ct.pal("~p~n", [Value]) end
+
+fn inexistent_key case:
+  list_to_binary(io_lib.format("_this_thing_should_not_exist_~p", [erlang.phash2(now())]))
+end
+
+fn query_stream case Config, Bucket, Stream, Limit:
+  Conn = conn(Config)
+  ioriofn.query(Conn, Bucket, Stream, Limit)
+end
+
+fn query_stream case Config, Bucket, Stream:
+  Conn = conn(Config)
+  ioriofn.query(Conn, Bucket, Stream)
+end
+
+fn patch_my_stream case Config, Stream, Data:
+  Conn = conn(Config)
+  ioriofn.send_patch(Conn, '_user_mariano', Stream, Data)
+end
+
+fn send_my_stream case Config, Stream, Data:
+  Conn = conn(Config)
+  ioriofn.send(Conn, '_user_mariano', Stream, Data)
+end
+
+fn query_my_stream case Config, Stream:
+  query_stream(Config, '_user_mariano', Stream)
+end
+
+fn query_my_stream case Config, Stream, Limit:
+  query_stream(Config, '_user_mariano', Stream, Limit)
+end
 
 fn new_connection case:
   Host = "localhost"
@@ -202,4 +236,43 @@ fn grant_revoke_other_stream_not_authenticated @public case Config:
     Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', put)
     Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', grant)
   end
+end
+
+fn query_inexistent @public case Config:
+  (ok, []) = query_my_stream(Config, inexistent_key())
+  (ok, []) = query_my_stream(Config, inexistent_key(), 0)
+  (ok, []) = query_my_stream(Config, inexistent_key(), 10)
+  (ok, []) = query_my_stream(Config, inexistent_key(), 100)
+end
+
+fn query_other_inexistent @public case Config:
+  Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+  Response = query_stream(Config, '_user_admin', inexistent_key())
+end
+
+fn send_query_last @public case Config:
+  Data = {'name': 'bob', 'id': erlang.phash2(now())}
+  Stream = '_test_ct_'
+  (ok, {'meta' = {'id' = Id, 't' = T}}) = send_my_stream(Config, Stream, Data)
+  Response = (ok, [{'meta': {'id': Id, 't': T}, 'data': Data}])
+  Response = query_my_stream(Config, Stream)
+end
+
+fn send_patch_query_last @public case Config:
+  Id = erlang.phash2(now())
+  Data = {'name': 'bob', 'id': Id}
+  Patch = [{'op': 'add', 'path': '/name', 'value': 'plankton'}]
+  PatchedData = {'name': 'plankton', 'id': Id}
+  Stream = '_test_ct_'
+
+  (ok, {'meta' = {'id' = SendId, 't' = SendT}}) = send_my_stream(Config, Stream, Data)
+  (ok, {'meta' = {'id' = PatchId, 't' = PatchT}}) = patch_my_stream(Config, Stream, Patch)
+
+  SendResponse = {'meta': {'id': SendId, 't': SendT}, 'data': Data}
+  PatchResponse = {'meta': {'id': PatchId, 't': PatchT}, 'data': PatchedData}
+  ExpectedResponse = (ok, [SendResponse, PatchResponse])
+
+  Response = query_my_stream(Config, Stream, 2)
+
+  ExpectedResponse = Response
 end
