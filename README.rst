@@ -8,14 +8,21 @@ Build
 
 ::
 
-    rebar3 compile
+    ./rebar3 compile
+
+Run Tests
+---------
+
+::
+
+    ./rebar3 ct
 
 Use
 ---
 
 Start the erlang shell (no efene shell yet)::
 
-    rebar3 shell
+    ./rebar3 shell
 
 and then::
 
