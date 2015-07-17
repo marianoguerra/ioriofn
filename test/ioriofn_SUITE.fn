@@ -31,6 +31,7 @@ fn with_connection case Fn:
   try
     Fn(C1)
   catch case T, E:
+    ct.pal("error: ~p:~p~n", [T, E])
     throw((error, (T, E)))
   after
     ioriofn.close(C1)
