@@ -1,17 +1,70 @@
 
-fn all
-    @public
-    case: [pass, fail]
+fn all @public case:
+  [ping, ping_not_authenticated, get_session, get_session_not_authenticated]
 end
 
-fn pass
-    @public
-    case _:
-        5 = ioriofn.add(2, 3)
+fn log case Value: ct.pal("~p~n", [Value]) end
+
+fn new_connection case:
+  Host = "localhost"
+  Port = 8080
+  ioriofn.new(Host, Port)
 end
 
-fn fail
-    @public
-    case _:
-        2 = ioriofn.add(1, 0)
+fn init_per_suite @public case Config:
+  application.ensure_all_started(ioriofn)
+  Config
+end
+
+fn init_per_testcase @public case _Test, Config:
+  Username = 'mariano'
+  Password = 'secret'
+
+  (ok, C1) = new_connection()
+  (ok, C2) = ioriofn.login(C1, Username, Password)
+
+  [(conn, C2) :: Config]
+end
+
+fn with_connection case Fn:
+  (ok, C1) = new_connection()
+  try
+    Fn(C1)
+  catch case T, E:
+    throw((error, (T, E)))
+  after
+    ioriofn.close(C1)
+  end
+end
+
+fn end_per_testcase @public case Test, Config:
+  Conn = conn(Config)
+  ioriofn.close(Conn)
+  Config
+end
+
+fn conn case Config:
+  proplists.get_value(conn, Config)
+end
+
+fn ping_not_authenticated @public case Config:
+  with_connection() <- case Conn:
+    (ok, {'pong' = _}) = ioriofn.ping(Conn)
+  end
+end
+
+fn ping @public case Config:
+  Conn = conn(Config)
+  (ok, {'pong' = _}) = ioriofn.ping(Conn)
+end
+
+fn get_session @public case Config:
+  Conn = conn(Config)
+  (ok, {'username' = 'mariano'}) = ioriofn.get_session(Conn)
+end
+
+fn get_session_not_authenticated @public case _Config:
+  with_connection() <- case Conn:
+    (ok, {'username' = 'anonymous'}) = ioriofn.get_session(Conn)
+  end
 end
