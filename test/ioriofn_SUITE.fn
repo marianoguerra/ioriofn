@@ -1,6 +1,9 @@
 
 fn all @public case:
-  [ping, ping_not_authenticated, get_session, get_session_not_authenticated]
+  [ping, ping_not_authenticated,
+   get_session, get_session_not_authenticated,
+   list_buckets, list_buckets_unauthenticated, list_buckets_unauthorized,
+   list_streams, list_streams_unauthenticated, list_streams_unauthorized]
 end
 
 fn log case Value: ct.pal("~p~n", [Value]) end
@@ -11,23 +14,36 @@ fn new_connection case:
   ioriofn.new(Host, Port)
 end
 
+fn new_login case Username, Password:
+  (ok, C1) = new_connection()
+  ioriofn.login(C1, Username, Password)
+end
+
+
 fn init_per_suite @public case Config:
   application.ensure_all_started(ioriofn)
   Config
 end
 
 fn init_per_testcase @public case _Test, Config:
-  Username = 'mariano'
-  Password = 'secret'
-
-  (ok, C1) = new_connection()
-  (ok, C2) = ioriofn.login(C1, Username, Password)
-
-  [(conn, C2) :: Config]
+  (ok, Conn) = new_login('mariano', 'secret')
+  [(conn, Conn) :: Config]
 end
 
 fn with_connection case Fn:
   (ok, C1) = new_connection()
+  try
+    Fn(C1)
+  catch case T, E:
+    ct.pal("error: ~p:~p~n", [T, E])
+    throw((error, (T, E)))
+  after
+    ioriofn.close(C1)
+  end
+end
+
+fn with_login case Fn, Username, Password:
+  (ok, C1) = new_login(Username, Password)
   try
     Fn(C1)
   catch case T, E:
@@ -68,4 +84,42 @@ fn get_session_not_authenticated @public case _Config:
   with_connection() <- case Conn:
     (ok, {'username' = 'anonymous'}) = ioriofn.get_session(Conn)
   end
+end
+
+fn list_buckets_unauthenticated @public case _Config:
+  with_connection() <- case Conn:
+    (error, (unauthorized, {'reason' = 'No Permission',
+                            'type' = 'no-perm'})) = ioriofn.list_buckets(Conn)
+  end
+end
+
+fn list_buckets_unauthorized @public case Config:
+  Conn = conn(Config)
+  (error, (unauthorized, {'reason' = 'No Permission',
+                          'type' = 'no-perm'})) = ioriofn.list_buckets(Conn)
+end
+
+fn list_buckets @public case _Config:
+  with_login('admin', 'secret') <<- case Conn:
+    (ok, _) = ioriofn.list_buckets(Conn)
+  end
+end
+
+fn list_streams_unauthenticated @public case _Config:
+  with_connection() <- case Conn:
+    (error, (unauthorized, {'reason' = 'No Permission',
+                            'type' = 'no-perm'})) = ioriofn.list_streams(Conn, '_user_mariano')
+  end
+end
+
+fn list_streams_unauthorized @public case Config:
+  Conn = conn(Config)
+  (error, (unauthorized, {'reason' = 'No Permission',
+                          'type' = 'no-perm'})) = ioriofn.list_streams(Conn, '_user_admin')
+end
+
+fn list_streams @public case Config:
+  Conn = conn(Config)
+  (ok, {'data' = Streams, 'status' = 'ok'}) = ioriofn.list_streams(Conn, '_user_mariano')
+  true = is_list(Streams)
 end
