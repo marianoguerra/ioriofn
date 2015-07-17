@@ -7,7 +7,9 @@ fn all @public case:
    grant_revoke_own_bucket, grant_revoke_other_bucket, grant_revoke_other_bucket_not_authenticated,
    grant_revoke_own_stream, grant_revoke_other_stream, grant_revoke_other_stream_not_authenticated,
    query_inexistent, query_other_inexistent,
-   send_query_last, send_patch_query_last]
+   send_query_last, send_patch_query_last,
+   send_other, patch_other,
+   send_other_not_authenticated, patch_other_not_authenticated]
 end
 
 fn log case Value: ct.pal("~p~n", [Value]) end
@@ -275,4 +277,36 @@ fn send_patch_query_last @public case Config:
   Response = query_my_stream(Config, Stream, 2)
 
   ExpectedResponse = Response
+end
+
+fn send_other_not_authenticated @public case Config:
+  with_connection() <- case Conn:
+    Id = erlang.phash2(now())
+    Data = {'name': 'bob', 'id': Id}
+    Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+    Response = ioriofn.send(Conn, 'public', '_test_ct_', Data)
+  end
+end
+
+fn patch_other_not_authenticated @public case Config:
+  with_connection() <- case Conn:
+    Patch = [{'op': 'add', 'path': '/name', 'value': 'plankton'}]
+    Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+    Response = ioriofn.send_patch(Conn, 'public', '_test_ct_', Patch)
+  end
+end
+
+fn send_other @public case Config:
+  Conn = conn(Config)
+  Id = erlang.phash2(now())
+  Data = {'name': 'bob', 'id': Id}
+  Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+  Response = ioriofn.send(Conn, 'public', '_test_ct_', Data)
+end
+
+fn patch_other @public case Config:
+  Conn = conn(Config)
+  Patch = [{'op': 'add', 'path': '/name', 'value': 'plankton'}]
+  Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+  Response = ioriofn.send_patch(Conn, 'public', '_test_ct_', Patch)
 end
