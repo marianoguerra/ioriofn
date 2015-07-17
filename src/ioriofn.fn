@@ -194,7 +194,7 @@ end
 
 fn patch
   case {conn = Conn, token = Token}, Path, Body:
-    Headers = when token is nil:
+    Headers = when Token is nil:
       {'Content-Type': 'application/json-patch+json'}
     else:
       {'Content-Type': 'application/json-patch+json', 'x-session': Token}
