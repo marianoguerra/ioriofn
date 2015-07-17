@@ -4,8 +4,8 @@ fn all @public case:
    get_session, get_session_not_authenticated,
    list_buckets, list_buckets_unauthenticated, list_buckets_unauthorized,
    list_streams, list_streams_unauthenticated, list_streams_unauthorized,
-   grant_revoke_own_bucket, grant_revoke_other_bucket,
-   grant_revoke_own_stream, grant_revoke_other_stream]
+   grant_revoke_own_bucket, grant_revoke_other_bucket, grant_revoke_other_bucket_not_authenticated,
+   grant_revoke_own_stream, grant_revoke_other_stream, grant_revoke_other_stream_not_authenticated]
 end
 
 fn log case Value: ct.pal("~p~n", [Value]) end
@@ -152,6 +152,21 @@ fn grant_revoke_other_bucket @public case Config:
   Response = ioriofn.revoke_bucket(Conn, 'public', 'admin', list)
 end
 
+fn grant_revoke_other_bucket_not_authenticated @public case Config:
+  with_connection() <- case Conn:
+    Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+    Response = ioriofn.grant_bucket(Conn, 'public', 'admin', get)
+    Response = ioriofn.grant_bucket(Conn, 'public', 'admin', put)
+    Response = ioriofn.grant_bucket(Conn, 'public', 'admin', grant)
+    Response = ioriofn.grant_bucket(Conn, 'public', 'admin', list)
+
+    Response = ioriofn.revoke_bucket(Conn, 'public', 'admin', get)
+    Response = ioriofn.revoke_bucket(Conn, 'public', 'admin', put)
+    Response = ioriofn.revoke_bucket(Conn, 'public', 'admin', grant)
+    Response = ioriofn.revoke_bucket(Conn, 'public', 'admin', list)
+  end
+end
+
 fn grant_revoke_own_stream @public case Config:
   Conn = conn(Config)
   Response = (ok, {'ok': true})
@@ -174,4 +189,17 @@ fn grant_revoke_other_stream @public case Config:
   Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', get)
   Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', put)
   Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', grant)
+end
+
+fn grant_revoke_other_stream_not_authenticated @public case Config:
+  with_connection() <- case Conn:
+    Response = (error, (unauthorized, {'reason': 'No Permission', 'type': 'no-perm'}))
+    Response = ioriofn.grant_stream(Conn, 'public', 'ct', 'admin', get)
+    Response = ioriofn.grant_stream(Conn, 'public', 'ct', 'admin', put)
+    Response = ioriofn.grant_stream(Conn, 'public', 'ct', 'admin', grant)
+
+    Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', get)
+    Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', put)
+    Response = ioriofn.revoke_stream(Conn, 'public', 'ct', 'admin', grant)
+  end
 end
