@@ -177,9 +177,16 @@ fn stream_path
     io_lib.format("/streams/~s/~s/", [Bucket, Stream])
 end
 
+fn json_headers
+  case nil:
+    {'Content-Type': 'application/json'}
+  case Token:
+    {'Content-Type': 'application/json', 'x-session': Token}
+end
+
 fn post
   case {conn = Conn, token = Token}, Path, Body:
-    Headers = {'Content-Type': 'application/json', 'x-session': Token}
+    Headers = json_headers(Token)
     ReqBody = to_json(Body)
     Options = {}
     shotgun.post(Conn, Path, Headers, ReqBody, Options)
@@ -187,7 +194,11 @@ end
 
 fn patch
   case {conn = Conn, token = Token}, Path, Body:
-    Headers = {'Content-Type': 'application/json-patch+json', 'x-session': Token}
+    Headers = when token is nil:
+      {'Content-Type': 'application/json-patch+json'}
+    else:
+      {'Content-Type': 'application/json-patch+json', 'x-session': Token}
+    end
     ReqBody = to_json(Body)
     Options = {}
     shotgun.patch(Conn, Path, Headers, ReqBody, Options)
@@ -195,7 +206,7 @@ end
 
 fn get
   case {conn = Conn, token = Token}, Path:
-    Headers = {'Accept': 'application/json', 'x-session': Token}
+    Headers = json_headers(Token)
     Options = {}
     handle_200(shotgun.get(Conn, Path, Headers, Options))
 end
